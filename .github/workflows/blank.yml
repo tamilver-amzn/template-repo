@@ -1,29 +1,43 @@
-name: Create Repo from Template
-
 on:
   workflow_dispatch:
     inputs:
-      repo_name:
+      new_repo_name:
         description: 'Name of the new repository'
         required: true
+      new_repo_description:
+        description: 'Description of the new repository'
+        required: false
+        default: ''
       visibility:
         description: 'Repository visibility (public/private)'
         required: true
         default: 'private'
+      include_all_branches:
+        description: 'Include all branches'
+        required: true
+        default: 'false'
 
 jobs:
-  create-repo:
+  create_repo:
     runs-on: ubuntu-latest
     steps:
-      - name: Create repo from template
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.REPO_CREATION_TOKEN }}
-          script: |
-            await github.rest.repos.createUsingTemplate({
-              template_owner: 'tamilver-amzn',
-              template_repo: 'template-repo',
-              name: '${{ github.event.inputs.repo_name }}',
-              private: ${{ github.event.inputs.visibility == 'private' }},
-              owner: 'tamilver-amzn'
-            });
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Setup GitHub CLI
+      uses: cli/setup-gh@v1
+
+    - name: Create repository from template
+      env:
+        GH_TOKEN: ${{ secrets.REPO_CREATION_TOKEN }}
+      run: |
+        gh api \
+          --method POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          /repos/${{ github.repository_owner }}/template-repo/generate \
+          -f "owner=${{ github.repository_owner }}" \
+          -f "name=${{ github.event.inputs.new_repo_name }}" \
+          -f "description=${{ github.event.inputs.new_repo_description }}" \
+          -F "include_all_branches=${{ github.event.inputs.include_all_branches }}" \
+          -F "private=${{ github.event.inputs.visibility == 'private' }}"
