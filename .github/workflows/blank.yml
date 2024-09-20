@@ -1,0 +1,29 @@
+name: Create Repo from Template
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo_name:
+        description: 'Name of the new repository'
+        required: true
+      visibility:
+        description: 'Repository visibility (public/private)'
+        required: true
+        default: 'private'
+
+jobs:
+  create-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create repo from template
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.REPO_CREATION_TOKEN }}
+          script: |
+            await github.rest.repos.createUsingTemplate({
+              template_owner: 'tamilver-amzn',
+              template_repo: 'template-repo',
+              name: '${{ github.event.inputs.repo_name }}',
+              private: ${{ github.event.inputs.visibility == 'private' }},
+              owner: 'tamilver-amzn'
+            });
