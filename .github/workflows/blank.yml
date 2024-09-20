@@ -18,7 +18,6 @@ jobs:
       - name: Create repo from template
         uses: actions/github-script@v6
         with:
-          github-token: ${{ secrets.REPO_CREATION_TOKEN }}
           script: |
             await github.rest.repos.createUsingTemplate({
               template_owner: 'tamilver-amzn',
