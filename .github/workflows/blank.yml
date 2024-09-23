@@ -1,24 +1,59 @@
-name: repo-creation
+name: module-repository-creation
 
 on:
   workflow_dispatch:
     inputs:
-      new_repo_name:
-        description: 'Name of the new repository'
+      organization_name:
+        description: 'Organization name (marvel/spgi)'
         required: true
+        type: choice
+        options:
+          - marvel
+          - spgi
+      Iac:
+        description: 'Infrastructure as Code tool (terraform/cdk)'
+        required: true
+        type: choice
+        options:
+          - terraform
+          - cdk
+          - cloudformation
+      provider:
+        description: 'Cloud provider (aws/azure/google)'
+        required: true
+        type: choice
+        options:
+          - aws
+          - azure
+          - google
+      resource:
+        description: 'Resource name'
+        required: true
+        type: string
       new_repo_description:
         description: 'Description of the new repository'
         required: false
         default: ''
       visibility:
-        description: 'Repository visibility (public/private)'
+        description: 'Repository visibility (public/private/internal)'
         required: true
         default: 'private'
+        type: choice
+        options:
+          - public
+          - private
+          - internal
 
 jobs:
   create_repo:
     runs-on: ubuntu-latest
     steps:
+    - name: Generate repository name
+      id: generate_name
+      run: |
+        new_repo_name="${{ github.event.inputs.organization_name }}-${{ github.event.inputs.Iac }}-${{ github.event.inputs.provider }}-module-${{ github.event.inputs.resource }}"
+        echo "new_repo_name=${new_repo_name}" >> $GITHUB_OUTPUT
+    
     - name: Create empty repository
       env:
         GH_TOKEN: ${{ secrets.REPO_CREATION_TOKEN }}
@@ -28,9 +63,9 @@ jobs:
           -H "Accept: application/vnd.github+json" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
           /user/repos \
-          -f name="${{ github.event.inputs.new_repo_name }}" \
+          -f name="${{ steps.generate_name.outputs.new_repo_name }}" \
           -f description="${{ github.event.inputs.new_repo_description }}" \
-          -F private=${{ github.event.inputs.visibility == 'private' }}
+          -F private=${{ github.event.inputs.visibility }}
 
     - name: Copy files from template
       env:
@@ -51,7 +86,7 @@ jobs:
               --method PUT \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
-              /repos/${{ github.repository_owner }}/${{ github.event.inputs.new_repo_name }}/contents/$file \
+              /repos/${{ github.repository_owner }}/${{ steps.generate_name.outputs.new_repo_name }}/contents/$file \
               -f message="Initial commit" \
               -f content="$content"
           fi
