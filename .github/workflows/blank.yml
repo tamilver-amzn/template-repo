@@ -45,7 +45,7 @@ jobs:
         
         # Copy each file to the new repository, excluding .github folder
         for file in $files; do
-          if [[ $file != .github* ]]; then
+          if [[ $file != .github/workflows/blank.yml ]]; then
             content=$(gh api /repos/${{ github.repository_owner }}/template-repo/contents/$file | jq -r '.content')
             gh api \
               --method PUT \
