@@ -37,22 +37,7 @@ jobs:
         GH_TOKEN: ${{ secrets.REPO_CREATION_TOKEN }}
       run: |
         # Function to get files recursively
-        get_files() {
-          local path=$1
-          local files=$(gh api /repos/${{ github.repository_owner }}/template-repo/contents/$path | jq -r '.[] | select(.type!="dir") | .path')
-          local dirs=$(gh api /repos/${{ github.repository_owner }}/template-repo/contents/$path | jq -r '.[] | select(.type=="dir") | .path')
-          
-          for file in $files; do
-            echo $file
-          done
-          
-          for dir in $dirs; do
-            get_files $dir
-          done
-        }
-
-        # Get the list of files recursively
-        files=$(get_files "")
+        files=$(gh api /repos/${{ github.repository_owner }}/template-repo/git/trees/main?recursive=1 | jq -r '.tree[] | select(.type == "blob") | .path')
 
         # Print the list of files
         echo "Files to be copied:"
