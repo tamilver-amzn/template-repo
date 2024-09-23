@@ -36,9 +36,24 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.REPO_CREATION_TOKEN }}
       run: |
-        # Get the list of files in the template repository
-        files=$(gh api /repos/${{ github.repository_owner }}/template-repo/contents | jq -r '.[].path')
-        
+        # Function to get files recursively
+        get_files() {
+          local path=$1
+          local files=$(gh api /repos/${{ github.repository_owner }}/template-repo/contents/$path | jq -r '.[] | select(.type!="dir") | .path')
+          local dirs=$(gh api /repos/${{ github.repository_owner }}/template-repo/contents/$path | jq -r '.[] | select(.type=="dir") | .path')
+          
+          for file in $files; do
+            echo $file
+          done
+          
+          for dir in $dirs; do
+            get_files $dir
+          done
+        }
+
+        # Get the list of files recursively
+        files=$(get_files "")
+
         # Print the list of files
         echo "Files to be copied:"
         echo "$files"
