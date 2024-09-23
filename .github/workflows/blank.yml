@@ -1,3 +1,5 @@
+name: repo-creation
+
 on:
   workflow_dispatch:
     inputs:
@@ -12,19 +14,12 @@ on:
         description: 'Repository visibility (public/private)'
         required: true
         default: 'private'
-      include_all_branches:
-        description: 'Include all branches'
-        required: true
-        default: 'false'
 
 jobs:
   create_repo:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
-
-    - name: Create repository from template
+    - name: Create empty repository
       env:
         GH_TOKEN: ${{ secrets.REPO_CREATION_TOKEN }}
       run: |
@@ -32,9 +27,32 @@ jobs:
           --method POST \
           -H "Accept: application/vnd.github+json" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
-          /repos/${{ github.repository_owner }}/template-repo/generate \
-          -f "owner=${{ github.repository_owner }}" \
-          -f "name=${{ github.event.inputs.new_repo_name }}" \
-          -f "description=${{ github.event.inputs.new_repo_description }}" \
-          -F "include_all_branches=${{ github.event.inputs.include_all_branches }}" \
-          -F "private=${{ github.event.inputs.visibility == 'private' }}"
+          /user/repos \
+          -f name="${{ github.event.inputs.new_repo_name }}" \
+          -f description="${{ github.event.inputs.new_repo_description }}" \
+          -F private=${{ github.event.inputs.visibility == 'private' }}
+
+    - name: Copy files from template
+      env:
+        GH_TOKEN: ${{ secrets.REPO_CREATION_TOKEN }}
+      run: |
+        # Get the list of files in the template repository
+        files=$(gh api /repos/${{ github.repository_owner }}/template-repo/contents | jq -r '.[].path')
+        
+        # Print the list of files
+        echo "Files to be copied:"
+        echo "$files"
+        
+        # Copy each file to the new repository, excluding .github folder
+        for file in $files; do
+          if [[ $file != .github* ]]; then
+            content=$(gh api /repos/${{ github.repository_owner }}/template-repo/contents/$file | jq -r '.content')
+            gh api \
+              --method PUT \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /repos/${{ github.repository_owner }}/${{ github.event.inputs.new_repo_name }}/contents/$file \
+              -f message="Initial commit" \
+              -f content="$content"
+          fi
+        done
