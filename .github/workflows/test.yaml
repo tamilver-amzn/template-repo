@@ -46,7 +46,7 @@ jobs:
           --method PUT \
           -H "Accept: application/vnd.github+json" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
-          repos/${{ github.repository }}/branches/dev/protection \
+          repos/${{ github.repository }}/branches/main/protection \
           -F "required_status_checks[strict]=true" -F "enforce_admins=true" -F "required_pull_request_reviews[dismiss_stale_reviews]=true" -F "required_pull_request_reviews[require_code_owner_reviews]=true" -F "required_pull_request_reviews[required_approving_review_count]=2" -F "required_pull_request_reviews[require_last_push_approval]=true" -F "required_linear_history=true" -F "lock_branch=true" -F "required_conversation_resolution=true" -F "allow_fork_syncing=true"
 
         # Set protection for dev branch (if it exists)
