@@ -1,3 +1,5 @@
+name: module-repository-creation
+
 on:
   workflow_dispatch:
     inputs:
@@ -28,12 +30,6 @@ on:
         description: 'Resource name'
         required: true
         type: string
-      template_repo:
-        description: 'Template repository'
-        required: true
-        type: choice
-        options:
-          - ${{ steps.list_templates.outputs.template_list }}
       new_repo_description:
         description: 'Description of the new repository'
         required: false
@@ -57,9 +53,28 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.REPO_CREATION_TOKEN }}
       run: |
-        templates=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /orgs/${{ github.repository_owner }}/repos?type=template | jq -r '.[].name' | tr '\n' ',' | sed 's/,$//')
-        echo "template_list=${templates}" >> $GITHUB_OUTPUT
-        echo "Available templates: ${templates}"
+        templates=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /orgs/${{ github.repository_owner }}/repos?type=template | jq -r '.[].name')
+        echo "Available templates:"
+        echo "$templates"
+        echo "template_list<<EOF" >> $GITHUB_OUTPUT
+        echo "$templates" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Select template repository
+      id: select_template
+      run: |
+        IFS=$'\n' read -d '' -r -a templates <<< "${{ steps.list_templates.outputs.template_list }}"
+        if [ ${#templates[@]} -eq 0 ]; then
+          echo "No template repositories found."
+          exit 1
+        fi
+        echo "Please select a template repository:"
+        select template in "${templates[@]}"; do
+          if [ -n "$template" ]; then
+            echo "selected_template=$template" >> $GITHUB_OUTPUT
+            break
+          fi
+        done
 
     - name: Generate repository name
       id: generate_name
@@ -75,7 +90,7 @@ jobs:
           --method POST \
           -H "Accept: application/vnd.github+json" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
-          /repos/${{ github.repository_owner }}/${{ github.event.inputs.template_repo }}/generate \
+          /repos/${{ github.repository_owner }}/${{ steps.select_template.outputs.selected_template }}/generate \
           -f owner="${{ github.repository_owner }}" \
           -f name="${{ steps.generate_name.outputs.new_repo_name }}" \
           -f description="${{ github.event.inputs.new_repo_description }}" \
