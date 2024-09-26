@@ -1,4 +1,4 @@
-name: module-repository-creation
+name: module-repository-creaion
 
 on:
   workflow_dispatch:
@@ -48,17 +48,37 @@ jobs:
   create_repo:
     runs-on: ubuntu-latest
     steps:
-    - name: List template repositories
-      id: list_templates
+    - name: List and select template repository
+      id: select_template
       env:
         GH_TOKEN: ${{ secrets.REPO_CREATION_TOKEN }}
       run: |
-        templates=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /orgs/${{ github.repository_owner }}/repos?type=template | jq -r '.[].name')
+        echo "Fetching template repositories..."
+        response=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /orgs/${{ github.repository_owner }}/repos?type=template)
+        
+        if [ $? -ne 0 ]; then
+          echo "Error: Failed to fetch repositories"
+          exit 1
+        fi
+        
+        templates=$(echo "$response" | jq -r '.[] | select(.is_template == true) | .name')
+        
+        if [ -z "$templates" ]; then
+          echo "Error: No template repositories found"
+          exit 1
+        fi
+        
         echo "Available templates:"
         echo "$templates"
-        echo "template_list<<EOF" >> $GITHUB_OUTPUT
-        echo "$templates" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+        echo "Please enter the name of the template repository you want to use:"
+        read template_repo
+        
+        if ! echo "$templates" | grep -q "^$template_repo$"; then
+          echo "Error: Invalid template repository name"
+          exit 1
+        fi
+
+        echo "selected_template=$template_repo" >> $GITHUB_OUTPUT
 
     - name: Select template repository
       id: select_template
