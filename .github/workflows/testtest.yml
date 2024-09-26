@@ -1,0 +1,83 @@
+on:
+  workflow_dispatch:
+    inputs:
+      organization_name:
+        description: 'Organization name (marvel/spgi)'
+        required: true
+        type: choice
+        options:
+          - marvel
+          - spgi
+      Iac:
+        description: 'Infrastructure as Code tool (terraform/cdk)'
+        required: true
+        type: choice
+        options:
+          - terraform
+          - cdk
+          - cloudformation
+      provider:
+        description: 'Cloud provider (aws/azure/google)'
+        required: true
+        type: choice
+        options:
+          - aws
+          - azure
+          - google
+      resource:
+        description: 'Resource name'
+        required: true
+        type: string
+      template_repo:
+        description: 'Template repository'
+        required: true
+        type: choice
+        options:
+          - ${{ steps.list_templates.outputs.template_list }}
+      new_repo_description:
+        description: 'Description of the new repository'
+        required: false
+        default: ''
+      visibility:
+        description: 'Repository visibility (public/private/internal)'
+        required: true
+        default: 'private'
+        type: choice
+        options:
+          - public
+          - private
+          - internal
+
+jobs:
+  create_repo:
+    runs-on: ubuntu-latest
+    steps:
+    - name: List template repositories
+      id: list_templates
+      env:
+        GH_TOKEN: ${{ secrets.REPO_CREATION_TOKEN }}
+      run: |
+        templates=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /orgs/${{ github.repository_owner }}/repos?type=template | jq -r '.[].name' | tr '\n' ',' | sed 's/,$//')
+        echo "template_list=${templates}" >> $GITHUB_OUTPUT
+        echo "Available templates: ${templates}"
+
+    - name: Generate repository name
+      id: generate_name
+      run: |
+        new_repo_name="${{ github.event.inputs.organization_name }}-${{ github.event.inputs.Iac }}-${{ github.event.inputs.provider }}-module-${{ github.event.inputs.resource }}"
+        echo "new_repo_name=${new_repo_name}" >> $GITHUB_OUTPUT
+    
+    - name: Create repository from template
+      env:
+        GH_TOKEN: ${{ secrets.REPO_CREATION_TOKEN }}
+      run: |
+        gh api \
+          --method POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          /repos/${{ github.repository_owner }}/${{ github.event.inputs.template_repo }}/generate \
+          -f owner="${{ github.repository_owner }}" \
+          -f name="${{ steps.generate_name.outputs.new_repo_name }}" \
+          -f description="${{ github.event.inputs.new_repo_description }}" \
+          -F private=${{ github.event.inputs.visibility == 'private' }} \
+          -F include_all_branches=false
