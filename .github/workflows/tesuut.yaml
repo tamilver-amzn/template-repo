@@ -1,0 +1,13 @@
+    - name: Update repository settings
+      env:
+        GH_TOKEN: ${{ secrets.REPO_CREATION_TOKEN }}
+      run: |
+        gh api \
+          --method PATCH \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          /repos/${{ github.repository_owner }}/${{ steps.generate_name.outputs.new_repo_name }} \
+          -f allow_squash_merge=true \
+          -f allow_merge_commit=false \
+          -f allow_rebase_merge=false \
+          -f use_squash_pr_title_as_default=true
